@@ -23,7 +23,7 @@ void push_operation(const std::string &operation) {
 
 void push_constant(const Token &constant) {
   if (!cancel_pushing)
-    outputPolish.emplace_back(expr_const, constant.token);
+    outputPolish.push_back({ expr_const, constant.token });
 }
 
 void push_constant(const std::string &constant) {
@@ -110,7 +110,9 @@ void add_var(const std::string &var_type, int ptr, std::string var_name) {
 
   int i = 0;
   for (auto tid : tids) {
+
     for (auto v : tid) {
+      std::cout << "in tid under " << i << ": " << v.first << std::endl;
       if (v.first == var_name) {
         error_in_parser("redifintion of \"" + var_name + "\" in lesser scope");
       }
@@ -152,7 +154,6 @@ void erase_tid() {
 
 void init_print() {
   functions["print"].first = type_string;
-  functions["print"].second = {{type_string, "name"}};
 }
 
 void add_function(const std::string &func_type, const std::string &func_name) {
@@ -1300,7 +1301,8 @@ types Parser::term_11() {
   }
 
   if (oper.size() > 0) {
-    outputPolish.pop_back();
+    std::cout << "roflan zdarova " << std::endl;
+    //outputPolish.pop_back();
 
     push_operation(oper);
   }
@@ -1371,10 +1373,11 @@ types Parser::term_13() {
       if (cur_token.type != 3 || cur_token.token != ")") {
         argument_type = term();
 
-        if (indx_arguments >= functions[previous_token.token].second.size()) {
+        if (previous_token.token != "print" && indx_arguments >= functions[previous_token.token].second.size()) {
           error_in_parser("too much arguments in function");
         }
-        if (functions[previous_token.token].second[indx_arguments].first !=
+
+        if (previous_token.token != "print" && functions[previous_token.token].second[indx_arguments].first !=
             argument_type) {
           error_in_parser("wrong type of " +
                           std::to_string(indx_arguments + 1) +
@@ -1388,10 +1391,10 @@ types Parser::term_13() {
 
           argument_type = term();
 
-          if (indx_arguments >= functions[previous_token.token].second.size()) {
+          if (previous_token.token != "print" && indx_arguments >= functions[previous_token.token].second.size()) {
             error_in_parser("too much arguments in function");
           }
-          if (functions[previous_token.token].second[indx_arguments].first !=
+          if (previous_token.token != "print" && functions[previous_token.token].second[indx_arguments].first !=
               argument_type) {
             error_in_parser("wrong type of " +
                             std::to_string(indx_arguments + 1) +
@@ -1402,7 +1405,11 @@ types Parser::term_13() {
         }
       }
 
-      if (indx_arguments != functions[previous_token.token].second.size()) {
+      if (previous_token.token == "print") {
+        functions[previous_token.token].second.emplace_back(type_int, std::to_string(indx_arguments));
+      }
+
+      if (previous_token.token != "print" && indx_arguments != functions[previous_token.token].second.size()) {
         error_in_parser("too few arguments in function");
       }
 
@@ -1482,14 +1489,6 @@ void Parser::start() {
 
 void Parser::print_poliz() {
   for (int i = 0; i < outputPolish.size(); i++) {
-    /**(*fout) << "(";
-    if (outputPolish[i].Type == expr_name) {
-        (*fout) << "name) ";
-    } else if (outputPolish[i].Type == expr_operation) {
-        (*fout) << "operation) ";
-    } else if (outputPolish[i].Type == expr_const) {
-        (*fout) << "constant) ";
-    }**/
-    (*fout) << outputPolish[i].content << '\n';
+    std::cout << outputPolish[i].content << '\n';
   }
 }
