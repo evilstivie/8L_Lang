@@ -81,7 +81,7 @@ char opersIntChar(char a, int b, std::string oper);
 
 double opersDoubleDouble(double a, double b, std::string oper);
 
-char opersIntInt(int a, int b, std::string oper);
+int opersIntInt(int a, int b, std::string oper);
 
 types toType(std::string& s);
 
