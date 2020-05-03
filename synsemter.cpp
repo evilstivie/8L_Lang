@@ -88,7 +88,7 @@ double opersDoubleDouble(double a, double b, std::string oper) {
   }
 }
 
-char opersIntInt(int a, int b, std::string oper) {
+int opersIntInt(int a, int b, std::string oper) {
   if (oper == "+") {
     return a + b;
   } else if (oper == "-") {
@@ -112,7 +112,7 @@ char opersIntInt(int a, int b, std::string oper) {
   }
 }
 
-types toType(std::string& s) {
+types toType(std::string &s) {
   if (s == "int") {
     return type_int;
   } else if (s == "double") {
@@ -130,7 +130,7 @@ types toType(std::string& s) {
 
 std::vector<std::map<std::string, r_variable>> tid;
 
-types getType(std::string& s) {
+types getType(std::string &s) {
   if (s[0] == '\"')
     return type_string;
   if (s[0] == '\'')
@@ -184,14 +184,14 @@ r_variable mathOperations(r_variable fir, r_variable sec, std::string oper) {
         ans += c;
         ans += "'";
       } else {
-        int b = atoi(sec.content.c_str());
+        int b = std::stoi(sec.content);
         char c = opersCharInt(a, b, oper);
         ans = "'";
         ans += c;
         ans += "'";
       }
     } else {
-      int a = atoi(fir.content.c_str());
+      int a = stoi(fir.content);
       char b = sec.content[1];
       char c = opersIntChar(a, b, oper);
       ans = "'";
@@ -200,7 +200,8 @@ r_variable mathOperations(r_variable fir, r_variable sec, std::string oper) {
     }
     ansT = type_char;
   } else {
-    if (getType(fir.content) == type_double || getType(sec.content) == type_double) {
+    if (getType(fir.content) == type_double ||
+        getType(sec.content) == type_double) {
       double a = stod(fir.content);
       double b = stod(sec.content);
       double c = opersDoubleDouble(a, b, oper);
@@ -212,8 +213,8 @@ r_variable mathOperations(r_variable fir, r_variable sec, std::string oper) {
 
       ansT = type_double;
     } else {
-      int a = atoi(fir.content.c_str());
-      int b = atoi(sec.content.c_str());
+      int a = std::stoi(fir.content);
+      int b = std::stoi(sec.content);
       int c = opersIntInt(a, b, oper);
       ans = std::to_string(c);
       ansT = type_int;
@@ -232,15 +233,15 @@ std::map<std::string,
 std::map<std::string, int> function_begin;
 
 std::stack<std::pair<int, int>>
-    indFunc;  // <количество элементов в tid, индекс в полизе, где был $F>
+    indFunc; // <количество элементов в tid, индекс в полизе, где был $F>
 
-void toDouble(r_variable& a) {
+void toDouble(r_variable &a) {
   if (a.Type == type_int) {
     a.Type = type_double;
     a.content += ".0";
   }
 }
-void toInt(r_variable& a) {
+void toInt(r_variable &a) {
   if (a.Type == type_char) {
     a.Type = type_int;
     char c = a.content[1];
@@ -280,9 +281,14 @@ void set_tid(std::string name, r_variable var) {
   }
 }
 
-void operation(std::stack<token>& st,
-               std::vector<FinalToken> poliz,
-               int& ind) {
+bool is_number(const std::string &s) {
+  return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) {
+                         return !std::isdigit(c);
+                       }) == s.end();
+}
+
+void operation(std::stack<token> &st, std::vector<FinalToken> poliz, int &ind) {
+
   FinalToken cur = poliz[ind];
   if (cur.content == "+" || cur.content == "-" || cur.content == "*" ||
       cur.content == "/" || cur.content == "%" || cur.content == "^" ||
@@ -305,6 +311,7 @@ void operation(std::stack<token>& st,
     st.push(willAdd);
 
   } else if (cur.content == "=") {
+
     token var = st.top();
     st.pop();
     token link_ = st.top();
@@ -321,7 +328,7 @@ void operation(std::stack<token>& st,
     token last = st.top();
     st.pop();
 
-    r_variable* per = nullptr;
+    r_variable *per = nullptr;
 
     for (int i = (int)tid.size() - 1; i >= 0; i--) {
       if (tid[i].find(last.content) != tid[i].end()) {
@@ -437,10 +444,26 @@ void operation(std::stack<token>& st,
     ret.Type = expr_const;
     ret.content = ans.content;
     st.push(ret);
+  } else if (cur.content == "~-") {
+    token varToken = st.top();
+    st.pop();
+
+    token willAdd;
+    willAdd.Type = expr_const;
+    std::cout << "vartokenzopen " << varToken.content << std::endl;
+
+    if (varToken.content[0] == '-') {
+      willAdd.content = varToken.content.substr(1);
+    } else {
+      willAdd.content = "-" + varToken.content;
+    }
+
+    st.push(willAdd);
+
   } else if (cur.content == "!A") {
     token nwIndStr = st.top();
     st.pop();
-    int nwInd = atoi(nwIndStr.content.c_str());
+    int nwInd = stoi(nwIndStr.content);
     ind = nwInd - 1;
   } else if (cur.content == "!F") {
     token nwIndStr = st.top();
@@ -448,38 +471,65 @@ void operation(std::stack<token>& st,
     token needStr = st.top();
     st.pop();
     if (needStr.content == "false") {
-      int nwInd = atoi(nwIndStr.content.c_str());
+      int nwInd = stoi(nwIndStr.content);
       ind = nwInd - 1;
     }
   } else if (cur.content == "$F") {
     token funcNameTok = st.top();
     st.pop();
     std::string funcName = funcNameTok.content;
+
     // stack<pair<int, int>> indFunc; //<количество элементов в tid, индекс в
     // полизе, где был $F>
-    indFunc.push({tid.size(), ind});
+    if (funcName != "print") {
+
+      indFunc.push({tid.size(), ind});
+    }
     /*
      map <string, pair <types, vector <pair <types, string> > > > functions;
 
      map <string, int> function_begin;
      */
-    tid.emplace_back();
-    int cntParametrs = (int)functions[funcName].second.size();
+    if (funcName != "print") {
+      tid.emplace_back();
+    }
+
+    int cntParametrs =
+        funcName == "print" ? std::stoi(functions[funcName].second[0].second) : (int)functions[funcName].second.size();
+
     while (cntParametrs > 0) {
       token parametr = st.top();
       st.pop();
-      r_variable par;
-      par.Type = functions[funcName].second[cntParametrs - 1].first;
-      par.content = parametr.content;
+      if (funcName == "print") {
 
-      std::string parName = functions[funcName].second[cntParametrs - 1].second;
+        std::cout << parametr.content << ' ';
+        cntParametrs--;
 
-      tid.back()[parName] = par;
-      cntParametrs--;
+      } else {
+        r_variable par;
+        par.Type = functions[funcName].second[cntParametrs - 1].first;
+
+        par.content = parametr.content;
+
+        std::string parName =
+            functions[funcName].second[cntParametrs - 1].second;
+
+        tid.back()[parName] = par;
+        cntParametrs--;
+      }
     }
 
-    ind = function_begin[funcName];  // В этом месте точно будет $B, мы его
-                                     // просто пропускаем(в for ++)
+    if (funcName != "print") {
+      ind = function_begin[funcName]; // В этом месте точно будет $B, мы его
+                                      // просто пропускаем(в for ++)
+    } else {
+      std::cout << std::endl;
+      token ans;
+    ans.Type = expr_const;
+    ans.content = "<print output>";
+    st.push(ans);
+      return;
+    }
 
   } else if (cur.content == "$E") {
     std::pair<int, int> p = indFunc.top();
@@ -640,7 +690,7 @@ void operation(std::stack<token>& st,
     token ans;
     ans.Type = expr_const;
     if (fir.Type == type_string) {
-      if (fir.content < sec.content) {
+      if (fir.content <= sec.content) {
         ans.content = "true";
       } else {
         ans.content = "false";
@@ -648,15 +698,19 @@ void operation(std::stack<token>& st,
     } else if (fir.Type == type_double) {
       toDouble(fir);
       toDouble(sec);
-      if (fir.content < sec.content) {
+      if (fir.content <= sec.content) {
         ans.content = "true";
       } else {
         ans.content = "false";
       }
+    } else if (fir.Type == type_int) {
+      int a = std::stoi(fir.content);
+      int b = std::stoi(sec.content);
+      ans.content = a <= b ? "true" : "false";
     } else {
       toInt(fir);
       toInt(sec);
-      if (fir.content < sec.content) {
+      if (fir.content <= sec.content) {
         ans.content = "true";
       } else {
         ans.content = "false";
@@ -850,11 +904,11 @@ void operation(std::stack<token>& st,
         ans.content = "true";
       }
     } else if (var.Type == type_double) {
-      double kek = std::atof(var.content.c_str());
+      double kek = std::stod(var.content);
       kek = !kek;
       ans.content = std::to_string(kek);
     } else if (var.Type == type_int) {
-      int kek = std::atoi(var.content.c_str());
+      int kek = std::stoi(var.content);
       kek = !kek;
       ans.content = std::to_string(kek);
     } else {
@@ -878,15 +932,15 @@ void operation(std::stack<token>& st,
     ans.Type = expr_const;
 
     if (lol1.Type == type_double || lol2.Type == type_double) {
-      double a = std::atof(fir.content.c_str());
-      double b = std::atof(sec.content.c_str());
+      double a = std::stod(fir.content);
+      double b = std::stod(sec.content);
 
       double c = std::pow(a, b);
 
       ans.content = std::to_string(c);
     } else {
-      int a = std::atoi(fir.content.c_str());
-      int b = std::atoi(sec.content.c_str());
+      int a = std::stoi(fir.content);
+      int b = std::stoi(sec.content);
       int c = pow(a, b);
 
       ans.content = std::to_string(c);
@@ -896,9 +950,9 @@ void operation(std::stack<token>& st,
   }
 }
 
-void result(std::vector<FinalToken>& poliz) {
+void result(std::vector<FinalToken> &poliz) {
   std::cout << "Analyzis succeed" << std::endl;
-  
+
   std::stack<token> st;
 
   indFunc.push({0, poliz.size()});
@@ -913,10 +967,10 @@ void result(std::vector<FinalToken>& poliz) {
       ret.content = cur.content;
       st.push(ret);
     }
-    //        std::cout << st.size() << " " << (st.size() > 0 ? st.top().content
-    //        : "") << " " << std::endl;
+    //     std::cout << st.size() << " " << (st.size() > 0 ? st.top().content :
+    //     "") << " " << std::endl;
   }
 
-  std::cout << st.top().content << std::endl;
+  std::cout << (st.empty() ? "<>" : st.top().content) << std::endl;
   std::cout << "Program executed successfully" << std::endl;
 }
