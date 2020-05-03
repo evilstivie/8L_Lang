@@ -1,0 +1,15 @@
+func fib(int m) : int{
+    if (m <= 2) {
+        return 1;
+    }
+
+    int a = m - 1;
+    int b = m - 2;
+    return fib(a) + fib(b);
+}
+
+func main() : int {
+    int n = 7;
+
+    print(fib(n));
+}
